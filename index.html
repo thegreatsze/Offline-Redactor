@@ -1,0 +1,1525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Offline Redactor — Secure, Local Document Redaction</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ── Reset & base ─────────────────────────────────────────── */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+    --bg:        #0f0c08;
+    --bg2:       #1a1208;
+    --bg3:       #241a0e;
+    --border:    #3a2c18;
+    --gold:      #c8922a;
+    --gold-lt:   #dca83c;
+    --gold-dim:  #7a5a1a;
+    --text:      #e8dcc8;
+    --text-dim:  #9a8870;
+    --text-faint:#4a3c28;
+    --mono:      'Share Tech Mono', monospace;
+    --sans:      'Inter', sans-serif;
+    --radius:    10px;
+    --max:       1080px;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--gold); text-decoration: none; }
+a:hover { color: var(--gold-lt); }
+
+/* ── Layout helpers ───────────────────────────────────────── */
+.container { max-width: var(--max); margin: 0 auto; padding: 0 24px; }
+.section { padding: 96px 0; }
+.section + .section { border-top: 1px solid var(--border); }
+
+/* ── Nav ──────────────────────────────────────────────────── */
+nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(15,12,8,0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+}
+.nav-inner {
+    max-width: var(--max);
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    height: 56px;
+    gap: 32px;
+}
+.nav-logo {
+    font-family: var(--mono);
+    font-size: 15px;
+    color: var(--gold);
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+}
+.nav-links {
+    display: flex;
+    gap: 28px;
+    margin-left: auto;
+    list-style: none;
+}
+.nav-links a {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-dim);
+    letter-spacing: 0.02em;
+    transition: color 0.2s;
+}
+.nav-links a:hover { color: var(--gold-lt); }
+.nav-dl {
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 7px 16px;
+    border: 1px solid var(--gold-dim);
+    border-radius: 5px;
+    color: var(--gold);
+    background: transparent;
+    transition: background 0.2s, border-color 0.2s;
+    white-space: nowrap;
+}
+.nav-dl:hover { background: rgba(200,146,42,0.12); border-color: var(--gold); color: var(--gold-lt); }
+
+/* ── Hero ─────────────────────────────────────────────────── */
+#hero {
+    padding: 120px 24px 96px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+#hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(ellipse 60% 50% at 50% 0%, rgba(200,146,42,0.10) 0%, transparent 70%);
+    pointer-events: none;
+}
+.hero-badge {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    color: var(--gold);
+    border: 1px solid var(--gold-dim);
+    border-radius: 20px;
+    padding: 4px 14px;
+    margin-bottom: 32px;
+    background: rgba(200,146,42,0.07);
+}
+.hero-title {
+    font-family: var(--mono);
+    font-size: clamp(42px, 7vw, 80px);
+    color: var(--gold-lt);
+    letter-spacing: 0.08em;
+    line-height: 1.1;
+    margin-bottom: 12px;
+}
+.hero-sub {
+    font-family: var(--mono);
+    font-size: clamp(11px, 1.5vw, 14px);
+    letter-spacing: 0.25em;
+    color: var(--text-dim);
+    margin-bottom: 36px;
+}
+.hero-byline {
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 0.12em;
+    color: var(--gold-lt);
+    margin-bottom: 28px;
+    opacity: 0.80;
+}
+.hero-desc {
+    max-width: 560px;
+    margin: 0 auto 52px;
+    font-size: 17px;
+    color: var(--text-dim);
+    font-weight: 300;
+    line-height: 1.7;
+}
+.hero-actions {
+    display: flex;
+    gap: 14px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+.btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 0.05em;
+    padding: 14px 28px;
+    border-radius: var(--radius);
+    background: var(--gold);
+    color: #0f0c08;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.15s;
+    text-decoration: none;
+}
+.btn-primary:hover { background: var(--gold-lt); color: #0f0c08; transform: translateY(-1px); }
+.btn-primary svg { flex-shrink: 0; }
+.btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 0.05em;
+    padding: 14px 28px;
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s, transform 0.15s;
+    text-decoration: none;
+}
+.btn-ghost:hover { border-color: var(--gold-dim); color: var(--gold); transform: translateY(-1px); }
+
+/* ── Stats strip ──────────────────────────────────────────── */
+.stats {
+    display: flex;
+    justify-content: center;
+    gap: 0;
+    margin-top: 72px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    max-width: 680px;
+    margin-left: auto;
+    margin-right: auto;
+}
+.stat {
+    flex: 1;
+    padding: 20px 16px;
+    text-align: center;
+    background: var(--bg2);
+}
+.stat + .stat { border-left: 1px solid var(--border); }
+.stat-val {
+    font-family: var(--mono);
+    font-size: 22px;
+    color: var(--gold);
+    display: block;
+    margin-bottom: 4px;
+}
+.stat-lbl {
+    font-size: 11px;
+    color: var(--text-faint);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+/* ── Features grid ────────────────────────────────────────── */
+.section-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    color: var(--gold-dim);
+    text-transform: uppercase;
+    margin-bottom: 14px;
+}
+.section-title {
+    font-size: clamp(26px, 4vw, 38px);
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 16px;
+    line-height: 1.2;
+}
+.section-desc {
+    font-size: 16px;
+    color: var(--text-dim);
+    font-weight: 300;
+    max-width: 520px;
+    margin-bottom: 56px;
+}
+
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+.feat {
+    background: var(--bg2);
+    padding: 32px 28px;
+    transition: background 0.2s;
+}
+.feat:hover { background: var(--bg3); }
+.feat-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    background: rgba(200,146,42,0.10);
+    border: 1px solid var(--gold-dim);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+    font-size: 18px;
+}
+.feat-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 8px;
+}
+.feat-desc {
+    font-size: 13.5px;
+    color: var(--text-dim);
+    line-height: 1.65;
+    font-weight: 300;
+}
+.feat-tag {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: rgba(200,146,42,0.10);
+    color: var(--gold-dim);
+    margin-top: 14px;
+    letter-spacing: 0.05em;
+}
+
+/* ── How it works ─────────────────────────────────────────── */
+.steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 24px;
+    counter-reset: step;
+}
+.step {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 32px 24px;
+    position: relative;
+    counter-increment: step;
+    transition: border-color 0.2s;
+}
+.step:hover { border-color: var(--gold-dim); }
+.step::before {
+    content: counter(step, decimal-leading-zero);
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--gold-dim);
+    letter-spacing: 0.1em;
+    display: block;
+    margin-bottom: 20px;
+}
+.step-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 10px;
+}
+.step-desc {
+    font-size: 13px;
+    color: var(--text-dim);
+    line-height: 1.65;
+    font-weight: 300;
+}
+.step-code {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 11px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 6px 10px;
+    margin-top: 14px;
+    color: var(--gold);
+    letter-spacing: 0.05em;
+}
+
+/* ── Entity types ─────────────────────────────────────────── */
+.entity-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+.entity-pill {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    padding: 6px 14px;
+    border-radius: 5px;
+    border: 1px solid var(--border);
+    background: var(--bg2);
+    color: var(--text-dim);
+    transition: border-color 0.2s, color 0.2s;
+}
+.entity-pill:hover { border-color: var(--gold-dim); color: var(--gold); }
+
+/* ── Requirements ─────────────────────────────────────────── */
+.req-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.req-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    font-size: 14px;
+    color: var(--text-dim);
+}
+.req-list li::before {
+    content: '▸';
+    color: var(--gold-dim);
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+.req-list code {
+    font-family: var(--mono);
+    font-size: 12px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 6px;
+    color: var(--gold);
+}
+
+/* ── Download section ─────────────────────────────────────── */
+#download {
+    text-align: center;
+}
+.dl-box {
+    display: inline-block;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 48px 56px;
+    max-width: 540px;
+    width: 100%;
+}
+.dl-box h3 {
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 0.15em;
+    color: var(--gold-dim);
+    margin-bottom: 14px;
+}
+.dl-box p {
+    font-size: 14px;
+    color: var(--text-dim);
+    margin-bottom: 32px;
+    font-weight: 300;
+}
+.dl-steps {
+    text-align: left;
+    list-style: none;
+    margin-bottom: 36px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.dl-steps li {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    font-size: 13px;
+    color: var(--text-dim);
+}
+.dl-num {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--gold-dim);
+    flex-shrink: 0;
+    width: 18px;
+}
+.dl-steps code {
+    font-family: var(--mono);
+    font-size: 12px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 7px;
+    color: var(--gold);
+}
+
+/* ── Footer ───────────────────────────────────────────────── */
+footer {
+    border-top: 1px solid var(--border);
+    padding: 32px 24px;
+    text-align: center;
+}
+.footer-inner {
+    max-width: var(--max);
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+.footer-logo {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--gold-dim);
+    letter-spacing: 0.08em;
+}
+.footer-text {
+    font-size: 12px;
+    color: var(--text-faint);
+}
+.footer-credit {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-faint);
+    letter-spacing: 0.05em;
+}
+
+/* ── Utility ──────────────────────────────────────────────── */
+.divider { border: none; border-top: 1px solid var(--border); margin: 48px 0; }
+
+@media (max-width: 640px) {
+    .nav-links { display: none; }
+    .stats { flex-direction: column; }
+    .stat + .stat { border-left: none; border-top: 1px solid var(--border); }
+    .dl-box { padding: 36px 24px; }
+    .footer-inner { justify-content: center; text-align: center; }
+}
+</style>
+</head>
+<body>
+
+<!-- ── Nav ───────────────────────────────────────────────────── -->
+<nav>
+  <div class="nav-inner">
+    <a class="nav-logo" href="#" style="text-decoration:none">0FFL1N3 R3DA&lt;+0R</a>
+    <ul class="nav-links">
+      <li><a href="#demo">Demo</a></li>
+      <li><a href="#features">Features</a></li>
+      <li><a href="#how-it-works">How it works</a></li>
+      <li><a href="#entities">What gets detected</a></li>
+      <li><a href="#requirements">Requirements</a></li>
+    </ul>
+    <a class="nav-dl" href="#download">&#8659; Download</a>
+  </div>
+</nav>
+
+<!-- ── Hero ──────────────────────────────────────────────────── -->
+<section id="hero">
+  <div class="hero-badge">100% OFFLINE &nbsp;·&nbsp; NO CLOUD &nbsp;·&nbsp; NO TELEMETRY</div>
+  <h1 class="hero-title">0FFL1N3&nbsp;R3DA&lt;+0R</h1>
+  <p class="hero-sub">SECURE &nbsp;·&nbsp; LOCAL &nbsp;·&nbsp; PRIVATE</p>
+  <p class="hero-byline">By Tan Sze Yao</p>
+  <p class="hero-desc">
+    AI-powered document redaction that runs entirely on your machine.
+    Drag-and-drop a contract, review what gets redacted, then export and download the clean file —
+    the document never leaves your device.
+    The redacted document can then be safely uploaded to other AI contract analysis tools for substantive review.
+  </p>
+  <div class="hero-actions">
+    <a class="btn-primary" href="#download">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M8 1v9M4 7l4 4 4-4M2 13h12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Download for Windows
+    </a>
+    <a class="btn-ghost" href="#how-it-works">
+      See how it works
+    </a>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <span class="stat-val">14+</span>
+      <span class="stat-lbl">Entity types detected</span>
+    </div>
+    <div class="stat">
+      <span class="stat-val">PDF / DOCX / TXT</span>
+      <span class="stat-lbl">Supported formats</span>
+    </div>
+    <div class="stat">
+      <span class="stat-val">0 bytes</span>
+      <span class="stat-lbl">Data sent to cloud</span>
+    </div>
+  </div>
+</section>
+
+<!-- ── Demo ──────────────────────────────────────────────────── -->
+<style>
+/* ── Demo section ─────────────────────────────────────────── */
+.demo-window {
+    border: 1px solid #3a2c18;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 32px 80px rgba(0,0,0,0.55), 0 0 0 1px rgba(200,146,42,0.06);
+}
+.demo-titlebar {
+    position: relative;
+    background: #160f06;
+    border-bottom: 1px solid #2a1e0e;
+    padding: 9px 14px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.dtb-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink:0; }
+.dtb-red { background: #ff5f57; }
+.dtb-yel { background: #febc2e; }
+.dtb-grn { background: #28c840; }
+.dtb-title {
+    position: absolute;
+    left: 50%; transform: translateX(-50%);
+    font-family: var(--mono);
+    font-size: 13px;
+    color: #c8922a;
+    letter-spacing: 0.06em;
+    pointer-events: none;
+    white-space: nowrap;
+}
+.demo-shell {
+    display: grid;
+    grid-template-columns: 1fr 290px;
+}
+
+/* Document panel */
+.demo-doc {
+    border-right: 1px solid #d6cebc;
+    background: #f5f0e8;
+    display: flex;
+    flex-direction: column;
+}
+.demo-doc-toolbar {
+    background: #ede8dc;
+    border-bottom: 1px solid #d6cebc;
+    padding: 5px 10px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: #7a5a3a;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    letter-spacing: 0.02em;
+    flex-wrap: wrap;
+}
+.demo-page-badge { margin-left: auto; font-size: 10px; color: #9a8060; white-space:nowrap; }
+
+/* Draw mode controls in toolbar (undo/clear only) */
+.demo-draw-ctrl {
+    padding: 3px 8px;
+    font-family: var(--mono);
+    font-size: 10px;
+    border: 1px solid #9c8060;
+    border-radius: 4px;
+    background: #f0ebe0;
+    color: #5a3e28;
+    cursor: pointer;
+    display: none;
+    letter-spacing: 0.02em;
+}
+.demo-draw-ctrl:hover { background: #e2d8c8; }
+.demo-draw-ctrl.dc-visible { display: inline-block; }
+
+/* Draw mode button + panel in sidebar */
+.demo-draw-panel {
+    padding: 8px 7px 10px;
+    border-top: 1px solid #d6cebc;
+    background: #f0ebe0;
+}
+.demo-draw-btn {
+    width: 100%;
+    padding: 9px 8px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    border: 1px solid #9c8060;
+    border-radius: 5px;
+    background: #ede8dc;
+    color: #5a3e28;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+.demo-draw-btn:hover { background: #e2d8c8; border-color: #7a5a3a; }
+.demo-draw-btn.dm-active { background: #5a3e28; color: #f5f0e8; border-color: #5a3e28; }
+.demo-draw-hint {
+    font-size: 10px;
+    color: #9a7a5a;
+    line-height: 1.55;
+    margin-top: 8px;
+    font-family: var(--sans);
+    padding: 0 2px;
+}
+
+/* Document body wrap (canvas goes here) */
+#demo-doc-wrap {
+    position: relative;
+    flex: 1;
+}
+.demo-doc-body {
+    padding: 28px 32px 28px;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 12px;
+    color: #1e140a;
+    line-height: 1.9;
+}
+.demo-doc-body h3 {
+    font-size: 11.5px;
+    letter-spacing: 0.12em;
+    text-align: center;
+    margin-bottom: 4px;
+    font-weight: bold;
+}
+.demo-doc-body .doc-ref {
+    text-align: center;
+    font-size: 10px;
+    color: #7a5a3a;
+    letter-spacing: 0.08em;
+    margin-bottom: 20px;
+    font-family: Georgia, serif;
+}
+.demo-doc-body p { margin-bottom: 11px; text-align: justify; }
+.demo-doc-body .clause {
+    font-weight: bold;
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    margin: 16px 0 6px;
+    color: #3a2010;
+}
+.demo-doc-body .sig-table {
+    width: 100%;
+    font-size: 11px;
+    margin-top: 14px;
+    border-collapse: collapse;
+    line-height: 1.7;
+}
+.demo-doc-body .sig-table td {
+    width: 50%;
+    vertical-align: top;
+    padding: 10px 14px;
+}
+.demo-doc-body .sig-table td:first-child {
+    border-right: 1px solid #d6cebc;
+}
+.demo-doc-body .sig-line {
+    display: block;
+    border-bottom: 1px solid #9a7a5a;
+    margin: 6px 0 10px;
+    height: 18px;
+}
+
+#demo-draw-canvas {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    cursor: default;
+    display: block;
+}
+#demo-draw-canvas.dm-active {
+    pointer-events: all;
+    cursor: crosshair;
+}
+
+.demo-status {
+    background: #ede8dc;
+    border-top: 1px solid #d6cebc;
+    padding: 6px 10px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: #7a6040;
+    min-height: 28px;
+    letter-spacing: 0.02em;
+}
+
+/* Entity highlight spans in document */
+.d-ent {
+    border-radius: 2px;
+    padding: 0 2px;
+    transition: background 0.3s, color 0.3s, opacity 0.2s;
+    cursor: default;
+}
+.d-ent.d-redacted {
+    background: #111 !important;
+    color: transparent !important;
+    border-radius: 3px;
+    user-select: none;
+}
+.d-ent.d-unchecked { opacity: 0.32; filter: grayscale(0.7); }
+.d-ent.d-removed   { background: transparent !important; padding: 0 !important; }
+.d-DATE_TIME     { background: rgba(106,170,100,0.38); }
+.d-ORGANIZATION  { background: rgba(74,154,187,0.38); }
+.d-PERSON        { background: rgba(224,123,84,0.38); }
+.d-NRIC_SG       { background: rgba(90,171,170,0.38); }
+.d-ADDRESS       { background: rgba(196,126,184,0.38); }
+.d-EMAIL_ADDRESS { background: rgba(200,146,42,0.40); }
+.d-PHONE_NUMBER  { background: rgba(155,114,207,0.38); }
+.d-CONTRACT_ID   { background: rgba(212,168,32,0.35); }
+
+/* Sidebar */
+.demo-sidebar {
+    background: #f5f0e8;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.demo-sb-head {
+    padding: 6px 5px;
+    border-bottom: 1px solid #d6cebc;
+    background: #ede8dc;
+}
+.demo-apply-btn {
+    width: 100%;
+    padding: 7px 4px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.04em;
+    background: #5a3e28;
+    color: #f5f0e8;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.18s;
+}
+.demo-apply-btn:hover:not(:disabled) { background: #7a5a3a; }
+.demo-apply-btn:disabled { opacity: 0.45; cursor: default; }
+
+/* Confidence threshold slider */
+.demo-threshold {
+    padding: 7px 8px 6px;
+    border-bottom: 1px solid #d6cebc;
+    background: #f0ebe0;
+}
+.demo-thresh-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: #7a5a3a;
+    margin-bottom: 5px;
+    letter-spacing: 0.03em;
+}
+.demo-thresh-val-badge {
+    font-size: 10px;
+    color: var(--gold);
+    font-family: var(--mono);
+}
+#demo-thresh {
+    width: 100%;
+    accent-color: #5a3e28;
+    cursor: pointer;
+    height: 14px;
+    margin: 0;
+}
+.demo-thresh-hint {
+    font-size: 9px;
+    color: #b09070;
+    font-family: var(--mono);
+    margin-top: 3px;
+    letter-spacing: 0.02em;
+    min-height: 11px;
+}
+
+.demo-bulk {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 5px 5px;
+    border-bottom: 1px solid #d6cebc;
+    background: #ede8dc;
+}
+.demo-bulk-btn {
+    padding: 2px 7px;
+    font-size: 10px;
+    border: 1px solid #9c8060;
+    border-radius: 4px;
+    background: #f0ebe0;
+    color: #3a2e1e;
+    cursor: pointer;
+    font-family: var(--mono);
+}
+.demo-bulk-btn:hover { background: #e2d8c8; }
+.demo-count-lbl { margin-left: auto; font-size: 10px; color: #9a8060; font-family: var(--mono); }
+.demo-entity-list { flex: 1; overflow-y: auto; }
+
+/* Entity rows */
+.d-row {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 4px 2px 2px;
+    border-bottom: 1px solid #ede8dc;
+    min-height: 26px;
+    cursor: pointer;
+}
+.d-row:hover { background: #ece7db; }
+.d-row.d-unchecked .d-badge,
+.d-row.d-unchecked .d-val,
+.d-row.d-unchecked .d-conf,
+.d-row.d-unchecked .d-strip { opacity: 0.28; }
+.d-strip { width: 3px; align-self: stretch; border-radius: 2px; flex-shrink: 0; }
+.d-cb    { width: 14px; height: 14px; flex-shrink: 0; cursor: pointer; accent-color: #5a3e28; margin: 0 1px; }
+.d-pill  { flex: 1; display: flex; align-items: center; gap: 4px; min-width: 0; }
+.d-badge { background: #5a3e28; color: #fff; font-size: 9px; padding: 1px 3px; border-radius: 3px; white-space: nowrap; flex-shrink: 0; font-family: var(--mono); letter-spacing: 0.02em; }
+.d-val   { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: #3a2e1e; }
+.d-conf  { font-size: 10px; color: #aaa; flex-shrink: 0; font-family: var(--mono); }
+.d-rm    { flex-shrink: 0; width: 20px; height: 20px; border: 1px solid #d0c8b8; border-radius: 3px; background: #f5f0e8; color: #888; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; line-height: 1; padding: 0; }
+.d-rm:hover { background: #fde8e8; color: #c00; border-color: #c00; }
+
+/* Sidebar footer */
+.demo-sb-foot {
+    padding: 6px 5px;
+    border-top: 1px solid #d6cebc;
+    background: #ede8dc;
+}
+.demo-reset-btn {
+    width: 100%;
+    padding: 5px 8px;
+    font-family: var(--mono);
+    font-size: 10px;
+    background: transparent;
+    color: #7a5a3a;
+    border: 1px solid #b09070;
+    border-radius: 4px;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+}
+.demo-reset-btn:hover { background: #e2d8c8; }
+
+@media (max-width: 760px) {
+    .demo-shell { grid-template-columns: 1fr; }
+    .demo-sidebar { border-top: 1px solid #d6cebc; max-height: 420px; }
+    .dtb-title { position: static; transform: none; margin: 0 auto; }
+}
+</style>
+
+<section class="section" id="demo">
+  <div class="container">
+    <p class="section-label">Interactive Demo</p>
+    <h2 class="section-title">See it in action</h2>
+    <p class="section-desc">A sample NDA with 15 AI-detected entities. Adjust the confidence threshold, toggle individual items, draw manual redaction boxes over any area, then apply.</p>
+
+    <div class="demo-window">
+
+      <div class="demo-titlebar">
+        <div class="dtb-dot dtb-red"></div>
+        <div class="dtb-dot dtb-yel"></div>
+        <div class="dtb-dot dtb-grn"></div>
+        <span class="dtb-title">Offline Redactor &nbsp;&middot;&nbsp; NDA_Meridian_2024.pdf</span>
+      </div>
+
+      <div class="demo-shell">
+
+        <!-- ── Document panel ─────────────────────────────── -->
+        <div class="demo-doc">
+          <div class="demo-doc-toolbar">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="2" y="1" width="12" height="14" rx="2" stroke="#7a5a3a" stroke-width="1.4"/><path d="M5 5h6M5 8h6M5 11h4" stroke="#7a5a3a" stroke-width="1.2" stroke-linecap="round"/></svg>
+            Document preview &nbsp;&mdash;&nbsp; proposed redactions highlighted
+            <button id="demo-undo-btn" class="demo-draw-ctrl" title="Undo last box">&#8617; Undo</button>
+            <button id="demo-clear-btn" class="demo-draw-ctrl" title="Clear all boxes">&#128465; Clear</button>
+            <span class="demo-page-badge">Page 1 / 1</span>
+          </div>
+
+          <div id="demo-doc-wrap">
+            <div class="demo-doc-body">
+              <h3>NON-DISCLOSURE AGREEMENT</h3>
+              <p class="doc-ref">Agreement Ref: <span class="d-ent d-CONTRACT_ID" id="ent-ctr1" data-id="ctr1">CTR-2024-00892</span></p>
+
+              <p>This Non-Disclosure Agreement ("Agreement") is entered into as of <span class="d-ent d-DATE_TIME" id="ent-date1" data-id="date1">15&nbsp;March&nbsp;2024</span>, between <span class="d-ent d-ORGANIZATION" id="ent-org1" data-id="org1">Meridian Legal Partners LLP</span> (UEN: 200412356H) ("Disclosing Party"), a limited liability partnership duly registered in Singapore, and <span class="d-ent d-PERSON" id="ent-person1" data-id="person1">Sarah&nbsp;Chen</span> (NRIC No.&nbsp;<span class="d-ent d-NRIC_SG" id="ent-nric1" data-id="nric1">S8821453G</span>) ("Receiving Party").</p>
+
+              <p>The Receiving Party's registered address for the purposes of all official notices under this Agreement is <span class="d-ent d-ADDRESS" id="ent-addr1" data-id="addr1">14 Shenton Way, #08-01, Singapore&nbsp;068813</span>. For all formal correspondence, the Receiving Party may be contacted at <span class="d-ent d-EMAIL_ADDRESS" id="ent-email1" data-id="email1">sarah.chen@meridianlaw.com</span> or by telephone at <span class="d-ent d-PHONE_NUMBER" id="ent-phone1" data-id="phone1">+65&nbsp;9123&nbsp;4567</span>.</p>
+
+              <p class="clause">1. &nbsp;CONFIDENTIAL INFORMATION</p>
+              <p>"Confidential Information" means any data or information, oral or written, relating to the business, operations, finances, clients, or strategies of <span class="d-ent d-ORGANIZATION" id="ent-org2" data-id="org2">Hartwell Capital Group</span>, including financial projections, client lists, and proprietary methodologies disclosed in connection with Project Helios, whether furnished before or after the date of this Agreement.</p>
+
+              <p class="clause">2. &nbsp;OBLIGATIONS</p>
+              <p>The Receiving Party agrees to hold all Confidential Information in strict confidence and shall not disclose such information to any third party without the prior written consent of the Disclosing Party. The Receiving Party shall use the Confidential Information solely for evaluating a potential commercial arrangement between the parties and for no other purpose whatsoever.</p>
+
+              <p class="clause">3. &nbsp;TERM AND TERMINATION</p>
+              <p>This Agreement shall remain in full force and effect from the date of execution until <span class="d-ent d-DATE_TIME" id="ent-date2" data-id="date2">31&nbsp;March&nbsp;2026</span>, unless terminated earlier by either party upon written notice. Upon termination, the Receiving Party shall promptly destroy or return all materials containing Confidential Information and shall provide written certification of such destruction within seven (7) business days.</p>
+
+              <p class="clause">4. &nbsp;GOVERNING LAW</p>
+              <p>This Agreement shall be governed by and construed in accordance with the laws of the Republic of Singapore. Any dispute arising out of or in connection with this Agreement shall be referred to and finally resolved by the courts of Singapore, whose jurisdiction the parties hereby irrevocably submit to.</p>
+
+              <p class="clause">5. &nbsp;EXECUTION</p>
+              <p>IN WITNESS WHEREOF, the parties have duly executed this Agreement as of <span class="d-ent d-DATE_TIME" id="ent-date3" data-id="date3">1&nbsp;April&nbsp;2024</span>.</p>
+
+              <table class="sig-table">
+                <tr>
+                  <td>
+                    <strong>DISCLOSING PARTY</strong><br>
+                    <span class="sig-line"></span>
+                    <span class="d-ent d-PERSON" id="ent-person2" data-id="person2">David&nbsp;Lim</span>, Authorised Signatory<br>
+                    <span class="d-ent d-ORGANIZATION" id="ent-org2b" data-id="org2b">Hartwell Capital Group</span><br>
+                    <span class="d-ent d-EMAIL_ADDRESS" id="ent-email2" data-id="email2">d.lim@hartwell.com.sg</span>
+                  </td>
+                  <td>
+                    <strong>RECEIVING PARTY</strong><br>
+                    <span class="sig-line"></span>
+                    <span class="d-ent d-PERSON" id="ent-person1b" data-id="person1b">Sarah&nbsp;Chen</span><br>
+                    Witness: <span class="d-ent d-PERSON" id="ent-person3" data-id="person3">Priya&nbsp;Nair</span><br>
+                    NRIC: <span class="d-ent d-NRIC_SG" id="ent-nric2" data-id="nric2">T0234567H</span>
+                  </td>
+                </tr>
+              </table>
+            </div>
+            <canvas id="demo-draw-canvas"></canvas>
+          </div>
+
+          <div class="demo-status" id="demo-status"></div>
+        </div>
+
+        <!-- ── Sidebar ─────────────────────────────────────── -->
+        <div class="demo-sidebar">
+          <div class="demo-sb-head">
+            <button class="demo-apply-btn" id="demo-apply-btn">&#10003; Apply Redactions</button>
+          </div>
+
+          <div class="demo-threshold">
+            <div class="demo-thresh-row">
+              <span>Confidence threshold</span>
+              <span class="demo-thresh-val-badge" id="demo-thresh-val">70%</span>
+            </div>
+            <input type="range" id="demo-thresh" min="50" max="99" value="70" step="1">
+            <div class="demo-thresh-hint" id="demo-thresh-hint">&nbsp;</div>
+          </div>
+
+          <div class="demo-bulk">
+            <button class="demo-bulk-btn" id="demo-all-btn">&#9745; All</button>
+            <button class="demo-bulk-btn" id="demo-none-btn">&#9744; None</button>
+            <span class="demo-count-lbl" id="demo-count"></span>
+          </div>
+          <div class="demo-entity-list" id="demo-entity-list"></div>
+          <div class="demo-draw-panel">
+            <button id="demo-draw-btn" class="demo-draw-btn">&#9999;&nbsp; Draw Mode</button>
+            <p class="demo-draw-hint">For items the AI may not detect automatically — e.g. signatures or stamps containing names, or words with a dictionary meaning that are also PII in context. Switch on, then drag to draw black boxes directly over the document.</p>
+          </div>
+          <div class="demo-sb-foot">
+            <button class="demo-reset-btn" id="demo-reset-btn">&#8635; Reset demo</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+(function () {
+    // ── Entity data ───────────────────────────────────────────
+    var ENTITIES = [
+        { id:'ctr1',    type:'CONTRACT_ID',   value:'CTR-2024-00892',              score:0.95, strip:'#d4a820' },
+        { id:'date1',   type:'DATE_TIME',     value:'15 March 2024',               score:0.98, strip:'#6aaa64' },
+        { id:'org1',    type:'ORGANIZATION',  value:'Meridian Legal Partners LLP', score:0.94, strip:'#4a9abb' },
+        { id:'person1', type:'PERSON',        value:'Sarah Chen',                  score:0.96, strip:'#e07b54' },
+        { id:'nric1',   type:'NRIC_SG',       value:'S8821453G',                  score:0.99, strip:'#5aabaa' },
+        { id:'addr1',   type:'ADDRESS',       value:'14 Shenton Way, #08-01\u2026',score:0.89, strip:'#c47eb8' },
+        { id:'email1',  type:'EMAIL_ADDRESS', value:'sarah.chen@meridianlaw.com', score:0.99, strip:'#c8922a' },
+        { id:'phone1',  type:'PHONE_NUMBER',  value:'+65 9123 4567',              score:0.97, strip:'#9b72cf' },
+        { id:'org2',    type:'ORGANIZATION',  value:'Hartwell Capital Group',      score:0.85, strip:'#4a9abb' },
+        { id:'date2',   type:'DATE_TIME',     value:'31 March 2026',               score:0.96, strip:'#6aaa64' },
+        { id:'date3',   type:'DATE_TIME',     value:'1 April 2024',                score:0.72, strip:'#6aaa64' },
+        { id:'person2', type:'PERSON',        value:'David Lim',                   score:0.93, strip:'#e07b54' },
+        { id:'org2b',   type:'ORGANIZATION',  value:'Hartwell Capital Group',      score:0.85, strip:'#4a9abb' },
+        { id:'email2',  type:'EMAIL_ADDRESS', value:'d.lim@hartwell.com.sg',       score:0.99, strip:'#c8922a' },
+        { id:'person1b',type:'PERSON',        value:'Sarah Chen',                  score:0.96, strip:'#e07b54' },
+        { id:'person3', type:'PERSON',        value:'Priya Nair',                  score:0.74, strip:'#e07b54' },
+        { id:'nric2',   type:'NRIC_SG',       value:'T0234567H',                  score:0.99, strip:'#5aabaa' },
+    ];
+
+    var approved  = new Set(ENTITIES.map(function(e){ return e.id; }));
+    var removed   = new Set();
+    var threshold = 70;
+
+    // ── Draw mode ─────────────────────────────────────────────
+    var drawMode   = false;
+    var drawRects  = [];
+    var isDrawing  = false;
+    var drawStartX = 0, drawStartY = 0;
+    var canvas     = document.getElementById('demo-draw-canvas');
+    var ctx        = canvas.getContext('2d');
+    var wrap       = document.getElementById('demo-doc-wrap');
+
+    function initCanvas() {
+        canvas.width  = wrap.offsetWidth  || 600;
+        canvas.height = wrap.offsetHeight || 400;
+        redrawCanvas();
+    }
+    function redrawCanvas() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawRects.forEach(function(r) {
+            ctx.fillStyle = 'rgba(0,0,0,0.93)';
+            ctx.fillRect(r.x, r.y, r.w, r.h);
+        });
+    }
+    function getCanvasPos(e) {
+        var r = canvas.getBoundingClientRect();
+        var scaleX = canvas.width  / r.width;
+        var scaleY = canvas.height / r.height;
+        return {
+            x: (e.clientX - r.left) * scaleX,
+            y: (e.clientY - r.top)  * scaleY
+        };
+    }
+    function updateDrawControls() {
+        document.getElementById('demo-undo-btn').classList.toggle('dc-visible', drawRects.length > 0);
+        document.getElementById('demo-clear-btn').classList.toggle('dc-visible', drawRects.length > 0);
+    }
+
+    canvas.addEventListener('mousedown', function(e) {
+        if (!drawMode || e.button !== 0) return;
+        e.preventDefault();
+        var p = getCanvasPos(e);
+        drawStartX = p.x; drawStartY = p.y;
+        isDrawing = true;
+    });
+    canvas.addEventListener('mousemove', function(e) {
+        if (!drawMode || !isDrawing) return;
+        var p = getCanvasPos(e);
+        redrawCanvas();
+        var x = Math.min(drawStartX, p.x), y = Math.min(drawStartY, p.y);
+        var w = Math.abs(p.x - drawStartX),  h = Math.abs(p.y - drawStartY);
+        ctx.fillStyle = 'rgba(0,0,0,0.40)';
+        ctx.strokeStyle = '#cc3333';
+        ctx.lineWidth = 1.5;
+        ctx.fillRect(x, y, w, h);
+        ctx.strokeRect(x, y, w, h);
+    });
+    canvas.addEventListener('mouseup', function(e) {
+        if (!drawMode || !isDrawing) return;
+        isDrawing = false;
+        var p = getCanvasPos(e);
+        var x = Math.min(drawStartX, p.x), y = Math.min(drawStartY, p.y);
+        var w = Math.abs(p.x - drawStartX),  h = Math.abs(p.y - drawStartY);
+        if (w > 5 && h > 5) {
+            drawRects.push({ x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h) });
+            updateDrawControls();
+        }
+        redrawCanvas();
+        setStatus('Draw mode active \u2014 ' + drawRects.length + ' box' + (drawRects.length === 1 ? '' : 'es') + ' drawn. Click Apply Redactions to commit.');
+    });
+    canvas.addEventListener('mouseleave', function() {
+        if (isDrawing) { isDrawing = false; redrawCanvas(); }
+    });
+
+    document.getElementById('demo-undo-btn').addEventListener('click', function() {
+        if (drawRects.length) { drawRects.pop(); redrawCanvas(); updateDrawControls(); }
+        setStatus('Draw mode active \u2014 ' + drawRects.length + ' box' + (drawRects.length === 1 ? '' : 'es') + ' drawn.');
+    });
+    document.getElementById('demo-clear-btn').addEventListener('click', function() {
+        drawRects = []; redrawCanvas(); updateDrawControls();
+        setStatus('Draw mode active \u2014 all boxes cleared.');
+    });
+
+    document.getElementById('demo-draw-btn').addEventListener('click', function() {
+        drawMode = !drawMode;
+        this.classList.toggle('dm-active', drawMode);
+        canvas.classList.toggle('dm-active', drawMode);
+        if (drawMode) {
+            setStatus('Draw mode ON \u2014 drag to draw black boxes over any sensitive content.');
+        } else {
+            setStatus('Draw mode OFF. ' + drawRects.length + ' manual box' + (drawRects.length === 1 ? '' : 'es') + ' saved.');
+        }
+    });
+
+    // ── Helpers ───────────────────────────────────────────────
+    function esc(s) {
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+    function getSpan(id) { return document.getElementById('ent-' + id); }
+    function setStatus(msg) { document.getElementById('demo-status').textContent = msg; }
+
+    function syncSpan(id) {
+        var span = getSpan(id);
+        if (!span) return;
+        span.classList.toggle('d-unchecked', !removed.has(id) && !approved.has(id));
+        span.classList.toggle('d-removed',   removed.has(id));
+    }
+    function updateCount() {
+        var tot = 0, nA = 0;
+        ENTITIES.forEach(function(e) {
+            if (!removed.has(e.id)) { tot++; if (approved.has(e.id)) nA++; }
+        });
+        document.getElementById('demo-count').textContent = tot === 0 ? '' : nA + ' / ' + tot + ' selected';
+    }
+    function renderList() {
+        var list = document.getElementById('demo-entity-list');
+        var html = '';
+        var tot = 0, nA = 0;
+        ENTITIES.forEach(function(e) {
+            if (removed.has(e.id)) return;
+            tot++;
+            var isAp = approved.has(e.id);
+            if (isAp) nA++;
+            html +=
+                '<div class="d-row' + (isAp ? '' : ' d-unchecked') + '" data-id="' + e.id + '">' +
+                '<div class="d-strip" style="background:' + e.strip + '"></div>' +
+                '<input type="checkbox" class="d-cb" data-id="' + e.id + '"' + (isAp ? ' checked' : '') + '>' +
+                '<div class="d-pill" data-id="' + e.id + '">' +
+                  '<span class="d-badge">' + esc(e.type) + '</span>' +
+                  '<span class="d-val" title="' + esc(e.value) + '">' + esc(e.value) + '</span>' +
+                  '<span class="d-conf">' + Math.round(e.score * 100) + '%</span>' +
+                '</div>' +
+                '<button class="d-rm" data-rm="' + e.id + '" title="Remove">\u00d7</button>' +
+                '</div>';
+        });
+        list.innerHTML = html;
+        document.getElementById('demo-count').textContent = tot === 0 ? '' : nA + ' / ' + tot + ' selected';
+    }
+
+    // ── Confidence threshold ──────────────────────────────────
+    function applyThreshold(thresh) {
+        var dropped = [];
+        ENTITIES.forEach(function(e) {
+            if (removed.has(e.id)) return;
+            if (Math.round(e.score * 100) >= thresh) {
+                approved.add(e.id);
+            } else {
+                approved.delete(e.id);
+                dropped.push(e);
+            }
+            syncSpan(e.id);
+        });
+        renderList();
+        var hint = document.getElementById('demo-thresh-hint');
+        if (dropped.length > 0) {
+            hint.textContent = dropped.length + ' entit' + (dropped.length === 1 ? 'y' : 'ies') + ' below threshold \u2014 unchecked';
+        } else {
+            hint.textContent = 'All entities meet threshold';
+        }
+    }
+
+    document.getElementById('demo-thresh').addEventListener('input', function() {
+        threshold = parseInt(this.value, 10);
+        document.getElementById('demo-thresh-val').textContent = threshold + '%';
+        applyThreshold(threshold);
+    });
+
+    // ── Entity list interaction ───────────────────────────────
+    document.getElementById('demo-entity-list').addEventListener('click', function(ev) {
+        if (document.getElementById('demo-apply-btn').disabled) return;
+        var list = this;
+        var rm = ev.target.closest('[data-rm]');
+        if (rm) {
+            var id = rm.dataset.rm;
+            removed.add(id); approved.delete(id);
+            syncSpan(id); renderList(); return;
+        }
+        var cb   = ev.target.closest('.d-cb');
+        var pill = ev.target.closest('.d-pill');
+        var id   = null;
+        if (cb) {
+            id = cb.dataset.id;
+            if (cb.checked) approved.add(id); else approved.delete(id);
+        } else if (pill) {
+            id = pill.dataset.id;
+            if (approved.has(id)) approved.delete(id); else approved.add(id);
+            var row = list.querySelector('.d-row[data-id="' + id + '"]');
+            var cbEl = row && row.querySelector('.d-cb');
+            if (cbEl) cbEl.checked = approved.has(id);
+        }
+        if (id) {
+            syncSpan(id);
+            var row = list.querySelector('.d-row[data-id="' + id + '"]');
+            if (row) row.classList.toggle('d-unchecked', !approved.has(id));
+            updateCount();
+        }
+    });
+
+    document.getElementById('demo-all-btn').addEventListener('click', function() {
+        ENTITIES.forEach(function(e) {
+            if (!removed.has(e.id) && Math.round(e.score * 100) >= threshold) {
+                approved.add(e.id); syncSpan(e.id);
+            }
+        });
+        renderList();
+    });
+    document.getElementById('demo-none-btn').addEventListener('click', function() {
+        ENTITIES.forEach(function(e) { approved.delete(e.id); syncSpan(e.id); });
+        renderList();
+    });
+
+    // ── Apply redactions ──────────────────────────────────────
+    document.getElementById('demo-apply-btn').addEventListener('click', function() {
+        var btn = this;
+        btn.disabled = true;
+        var toRedact = ENTITIES.filter(function(e) { return !removed.has(e.id) && approved.has(e.id); });
+        if (toRedact.length === 0 && drawRects.length === 0) {
+            setStatus('Nothing selected for redaction.');
+            btn.disabled = false; return;
+        }
+        var i = 0;
+        (function next() {
+            if (i < toRedact.length) {
+                var span = getSpan(toRedact[i].id);
+                if (span) span.classList.add('d-redacted');
+                setStatus('Applying redactions\u2026 ' + (i + 1) + ' / ' + toRedact.length);
+                i++; setTimeout(next, 140);
+            } else {
+                var boxNote = drawRects.length > 0 ? ' + ' + drawRects.length + ' drawn box' + (drawRects.length === 1 ? '' : 'es') : '';
+                document.getElementById('demo-status').innerHTML =
+                    '<span style="color:#6aaa64">&#10003;</span> Redaction complete \u2014 ' +
+                    toRedact.length + ' text entit' + (toRedact.length === 1 ? 'y' : 'ies') + boxNote + ' redacted. Ready for download.';
+            }
+        }());
+    });
+
+    // ── Reset ─────────────────────────────────────────────────
+    document.getElementById('demo-reset-btn').addEventListener('click', function() {
+        approved  = new Set(ENTITIES.map(function(e){ return e.id; }));
+        removed   = new Set();
+        threshold = 70;
+        drawRects = [];
+        drawMode  = false;
+        isDrawing = false;
+        document.getElementById('demo-thresh').value = '70';
+        document.getElementById('demo-thresh-val').textContent = '70%';
+        document.getElementById('demo-thresh-hint').textContent = 'All entities meet threshold';
+        document.getElementById('demo-draw-btn').classList.remove('dm-active');
+        canvas.classList.remove('dm-active');
+        document.getElementById('demo-undo-btn').classList.remove('dc-visible');
+        document.getElementById('demo-clear-btn').classList.remove('dc-visible');
+        ENTITIES.forEach(function(e) {
+            var span = getSpan(e.id);
+            if (span) span.classList.remove('d-redacted', 'd-unchecked', 'd-removed');
+        });
+        redrawCanvas();
+        document.getElementById('demo-apply-btn').disabled = false;
+        setStatus('AI scan complete \u2014 17 entities detected. Review the list and click Apply Redactions.');
+        renderList();
+    });
+
+    // ── Init ──────────────────────────────────────────────────
+    setTimeout(initCanvas, 0);
+    window.addEventListener('resize', initCanvas);
+    renderList();
+    applyThreshold(threshold);
+    setStatus('AI scan complete \u2014 17 entities detected. Review the list and click Apply Redactions.');
+}());
+</script>
+
+<!-- ── Features ──────────────────────────────────────────────── -->
+<section class="section" id="features">
+  <div class="container">
+    <p class="section-label">Features</p>
+    <h2 class="section-title">Everything you need to redact with confidence</h2>
+    <p class="section-desc">Built on Microsoft Presidio and spaCy — the same NLP stack trusted by enterprise security teams.</p>
+
+    <div class="features-grid">
+
+      <div class="feat">
+        <div class="feat-icon">🔒</div>
+        <div class="feat-title">Fully offline</div>
+        <p class="feat-desc">Once installed, the app requires no internet connection. Models run locally via spaCy. No document data is ever transmitted anywhere.</p>
+        <span class="feat-tag">PRIVACY-FIRST</span>
+      </div>
+
+      <div class="feat">
+        <div class="feat-icon">🧠</div>
+        <div class="feat-title">AI-powered PII detection</div>
+        <p class="feat-desc">Microsoft Presidio with spaCy's <code style="font-family:monospace;font-size:12px;color:var(--gold)">en_core_web_lg</code> model detects names, organisations, dates, phone numbers, IDs, and more — with confidence scores.</p>
+        <span class="feat-tag">NLP · NER</span>
+      </div>
+
+      <div class="feat">
+        <div class="feat-icon">✅</div>
+        <div class="feat-title">Review before you redact</div>
+        <p class="feat-desc">Every detected entity is listed for your review. Approve, reject, or remove individual items before a single redaction is applied.</p>
+        <span class="feat-tag">HUMAN-IN-THE-LOOP</span>
+      </div>
+
+      <div class="feat">
+        <div class="feat-icon">✏️</div>
+        <div class="feat-title">Manual phrase redaction</div>
+        <p class="feat-desc">Type any phrase to add it to the redaction list — useful for domain-specific identifiers the AI may not recognise, like internal project codes.</p>
+        <span class="feat-tag">CUSTOM PHRASES</span>
+      </div>
+
+      <div class="feat">
+        <div class="feat-icon">🖊️</div>
+        <div class="feat-title">Draw-to-redact on PDFs</div>
+        <p class="feat-desc">Switch into drawing mode and drag black boxes directly over any area of a PDF page — perfect for redacting signatures, stamps, or images that text search cannot find.</p>
+        <span class="feat-tag">DRAW MODE</span>
+      </div>
+
+      <div class="feat">
+        <div class="feat-icon">📄</div>
+        <div class="feat-title">Multi-format support</div>
+        <p class="feat-desc">Works with <strong>PDF</strong> (text-based), <strong>DOCX</strong>, and <strong>TXT</strong> files. PDF redactions are applied as permanent black boxes using PyMuPDF — no recoverable text underneath.</p>
+        <span class="feat-tag">PDF · DOCX · TXT</span>
+      </div>
+
+      <div class="feat">
+        <div class="feat-icon">🎨</div>
+        <div class="feat-title">Colour-coded entity preview</div>
+        <p class="feat-desc">In the document preview, each category of PII is highlighted in a distinct colour so you can spot patterns at a glance before committing to redaction.</p>
+        <span class="feat-tag">VISUAL REVIEW</span>
+      </div>
+
+      <div class="feat">
+        <div class="feat-icon">⬇️</div>
+        <div class="feat-title">Instant download</div>
+        <p class="feat-desc">Once you're happy, click Apply and download your redacted document in its original format. The redacted file is produced in memory and never written to a server.</p>
+        <span class="feat-tag">LOCAL OUTPUT</span>
+      </div>
+
+      <div class="feat">
+        <div class="feat-icon">⚙️</div>
+        <div class="feat-title">Enterprise-grade NLP stack</div>
+        <p class="feat-desc">Built on <strong style="color:var(--text)">Microsoft Presidio</strong> and <strong style="color:var(--text)">spaCy en_core_web_lg</strong> for reliable, production-quality entity detection. Optionally layer on <strong style="color:var(--text)">BERT-based NER</strong> (dslim/bert-base-NER) as a toggle for deeper coverage of unusual names and organisations — without replacing the core engine.</p>
+        <span class="feat-tag">PRESIDIO · SPACY · BERT</span>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ── How it works ───────────────────────────────────────────── -->
+<section class="section" id="how-it-works">
+  <div class="container">
+    <p class="section-label">How it works</p>
+    <h2 class="section-title">From raw document to redacted file in four steps</h2>
+    <p class="section-desc">The entire workflow runs in your browser tab, served locally. Nothing touches the internet.</p>
+
+    <div class="steps">
+
+      <div class="step">
+        <div class="step-title">Install once</div>
+        <p class="step-desc">Download and unzip. Run the setup script to create a local Python environment and download the AI model.</p>
+        <span class="step-code">setup.bat</span>
+      </div>
+
+      <div class="step">
+        <div class="step-title">Launch the app</div>
+        <p class="step-desc">Double-click to start. Your browser opens automatically at <code style="font-family:monospace;font-size:12px;color:var(--gold)">localhost:8501</code> — no internet required.</p>
+        <span class="step-code">run.bat</span>
+      </div>
+
+      <div class="step">
+        <div class="step-title">Upload & review</div>
+        <p class="step-desc">Upload your PDF, DOCX, or TXT file. The AI scans it and presents every detected entity for your approval. Accept, reject, or add your own phrases.</p>
+      </div>
+
+      <div class="step">
+        <div class="step-title">Apply & download</div>
+        <p class="step-desc">Click Apply Redactions. Draw any additional black boxes over images or signatures. Download your clean, redacted document.</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ── Entity types ───────────────────────────────────────────── -->
+<section class="section" id="entities">
+  <div class="container">
+    <p class="section-label">Detection coverage</p>
+    <h2 class="section-title">What gets detected</h2>
+    <p class="section-desc" style="margin-bottom:36px">Out of the box, the engine detects the following PII entity types. Custom phrases can supplement detection for anything not listed.</p>
+    <div class="entity-grid">
+      <span class="entity-pill">PERSON</span>
+      <span class="entity-pill">ORGANIZATION</span>
+      <span class="entity-pill">LOCATION</span>
+      <span class="entity-pill">DATE_TIME</span>
+      <span class="entity-pill">PHONE_NUMBER</span>
+      <span class="entity-pill">EMAIL_ADDRESS</span>
+      <span class="entity-pill">CREDIT_CARD</span>
+      <span class="entity-pill">US_SSN</span>
+      <span class="entity-pill">IP_ADDRESS</span>
+      <span class="entity-pill">CONTRACT_ID</span>
+      <span class="entity-pill">EIN</span>
+      <span class="entity-pill">BANK_ROUTING</span>
+      <span class="entity-pill">NRIC_SG</span>
+      <span class="entity-pill">ADDRESS</span>
+      <span class="entity-pill">+ custom phrases</span>
+    </div>
+  </div>
+</section>
+
+<!-- ── Requirements ───────────────────────────────────────────── -->
+<section class="section" id="requirements">
+  <div class="container">
+    <p class="section-label">System requirements</p>
+    <h2 class="section-title">What you need</h2>
+    <p class="section-desc" style="margin-bottom:36px">Lightweight. No GPU required. The setup script handles everything after step one.</p>
+    <ul class="req-list">
+      <li>Windows 10 or 11 (64-bit)</li>
+      <li>Python 3.10, 3.11, or 3.12 — install from <strong>python.org</strong>, tick <em>"Add Python to PATH"</em> during setup</li>
+      <li>~1.5 GB free disk space (Python environment + spaCy model)</li>
+      <li>Internet access during first-time setup only — to download dependencies</li>
+      <li>Any modern browser (Chrome, Edge, Firefox) — opens automatically on launch</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ── Download ───────────────────────────────────────────────── -->
+<section class="section" id="download">
+  <div class="container">
+    <p class="section-label" style="text-align:center">Download</p>
+    <h2 class="section-title" style="text-align:center">Get Offline Redactor</h2>
+    <p style="text-align:center;font-size:16px;color:var(--text-dim);font-weight:300;margin-bottom:48px">
+      Free. No account. No licence key.
+    </p>
+
+    <div style="display:flex;justify-content:center">
+      <div class="dl-box">
+        <h3>WINDOWS &nbsp;·&nbsp; v1.0</h3>
+        <p>Unzip, run <code style="font-family:monospace;font-size:12px;color:var(--gold)">setup.bat</code> once, then <code style="font-family:monospace;font-size:12px;color:var(--gold)">run.bat</code> every time.</p>
+        <ol class="dl-steps">
+          <li><span class="dl-num">01</span> Download and unzip the file below</li>
+          <li><span class="dl-num">02</span> Run <code>setup.bat</code> — installs everything (~5 min, internet needed once)</li>
+          <li><span class="dl-num">03</span> Run <code>run.bat</code> — opens the app in your browser</li>
+          <li><span class="dl-num">04</span> Upload a document and start redacting</li>
+        </ol>
+        <!-- ↓ Replace YOUR_USERNAME and REPO_NAME once your release is created -->
+        <a class="btn-primary" style="width:100%;justify-content:center"
+           href="https://github.com/YOUR_USERNAME/REPO_NAME/releases/download/v1.0/OfflineRedactor.zip" download>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M8 1v9M4 7l4 4 4-4M2 13h12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Download OfflineRedactor.zip
+        </a>
+        <p style="margin-top:16px;margin-bottom:0;font-size:11px;color:var(--text-faint);text-align:center">
+          Python 3.10+ must be installed separately · Windows only
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Footer ─────────────────────────────────────────────────── -->
+<footer>
+  <div class="footer-inner">
+    <span class="footer-logo">0FFL1N3 R3DA&lt;+0R</span>
+    <span class="footer-text">Powered by Microsoft Presidio · spaCy · PyMuPDF · Streamlit</span>
+    <span class="footer-credit">Built by Tan Sze Yao</span>
+  </div>
+</footer>
+
+</body>
+</html>
