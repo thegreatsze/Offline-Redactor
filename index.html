@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Offline Redactor — Secure, Local Document Redaction</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ── Reset & base ─────────────────────────────────────────── */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+    --bg:        #0f0c08;
+    --bg2:       #1a1208;
+    --bg3:       #241a0e;
+    --border:    #3a2c18;
+    --gold:      #c8922a;
+    --gold-lt:   #dca83c;
+    --gold-dim:  #7a5a1a;
+    --text:      #e8dcc8;
+    --text-dim:  #9a8870;
+    --text-faint:#4a3c28;
+    --mono:      'Share Tech Mono', monospace;
+    --sans:      'Inter', sans-serif;
+    --radius:    10px;
+    --max:       1080px;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--gold); text-decoration: none; }
+a:hover { color: var(--gold-lt); }
+
+/* ── Layout helpers ───────────────────────────────────────── */
+.container { max-width: var(--max); margin: 0 auto; padding: 0 24px; }
+.section { padding: 96px 0; }
+.section + .section { border-top: 1px solid var(--border); }
+
+/* ── Nav ──────────────────────────────────────────────────── */
+nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(15,12,8,0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+}
+.nav-inner {
+    max-width: var(--max);
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    height: 56px;
+    gap: 32px;
+}
+.nav-logo {
+    font-family: var(--mono);
+    font-size: 15px;
+    color: var(--gold);
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+}
+.nav-links {
+    display: flex;
+    gap: 28px;
+    margin-left: auto;
+    list-style: none;
+}
+.nav-links a {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-dim);
+    letter-spacing: 0.02em;
+    transition: color 0.2s;
+}
+.nav-links a:hover { color: var(--gold-lt); }
+.nav-dl {
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 7px 16px;
+    border: 1px solid var(--gold-dim);
+    border-radius: 5px;
+    color: var(--gold);
+    background: transparent;
+    transition: background 0.2s, border-color 0.2s;
+    white-space: nowrap;
+}
+.nav-dl:hover { background: rgba(200,146,42,0.12); border-color: var(--gold); color: var(--gold-lt); }
+
+/* ── Hero ─────────────────────────────────────────────────── */
+#hero {
+    padding: 120px 24px 96px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+#hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(ellipse 60% 50% at 50% 0%, rgba(200,146,42,0.10) 0%, transparent 70%);
+    pointer-events: none;
+}
+.hero-badge {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    color: var(--gold);
+    border: 1px solid var(--gold-dim);
+    border-radius: 20px;
+    padding: 4px 14px;
+    margin-bottom: 32px;
+    background: rgba(200,146,42,0.07);
+}
+.hero-title {
+    font-family: var(--mono);
+    font-size: clamp(42px, 7vw, 80px);
+    color: var(--gold-lt);
+    letter-spacing: 0.08em;
+    line-height: 1.1;
+    margin-bottom: 12px;
+}
+.hero-sub {
+    font-family: var(--mono);
+    font-size: clamp(11px, 1.5vw, 14px);
+    letter-spacing: 0.25em;
+    color: var(--text-dim);
+    margin-bottom: 36px;
+}
+.hero-byline {
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 0.12em;
+    color: var(--gold-lt);
+    margin-bottom: 28px;
+    opacity: 0.80;
+}
+.hero-desc {
+    max-width: 560px;
+    margin: 0 auto 52px;
+    font-size: 17px;
+    color: var(--text-dim);
+    font-weight: 300;
+    line-height: 1.7;
+}
+.hero-actions {
+    display: flex;
+    gap: 14px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+.btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 0.05em;
+    padding: 14px 28px;
+    border-radius: var(--radius);
+    background: var(--gold);
+    color: #0f0c08;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.15s;
+    text-decoration: none;
+}
+.btn-primary:hover { background: var(--gold-lt); color: #0f0c08; transform: translateY(-1px); }
+.btn-primary svg { flex-shrink: 0; }
+.btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 0.05em;
+    padding: 14px 28px;
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s, transform 0.15s;
+    text-decoration: none;
+}
+.btn-ghost:hover { border-color: var(--gold-dim); color: var(--gold); transform: translateY(-1px); }
+
+/* ── Stats strip ──────────────────────────────────────────── */
+.stats {
+    display: flex;
+    justify-content: center;
+    gap: 0;
+    margin-top: 72px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    max-width: 680px;
+    margin-left: auto;
+    margin-right: auto;
+}
+.stat {
+    flex: 1;
+    padding: 20px 16px;
+    text-align: center;
+    background: var(--bg2);
+}
+.stat + .stat { border-left: 1px solid var(--border); }
+.stat-val {
+    font-family: var(--mono);
+    font-size: 22px;
+    color: var(--gold);
+    display: block;
+    margin-bottom: 4px;
+}
+.stat-lbl {
+    font-size: 11px;
+    color: var(--text-faint);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+/* ── Features grid ────────────────────────────────────────── */
+.section-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    color: var(--gold-dim);
+    text-transform: uppercase;
+    margin-bottom: 14px;
+}
+.section-title {
+    font-size: clamp(26px, 4vw, 38px);
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 16px;
+    line-height: 1.2;
+}
+.section-desc {
+    font-size: 16px;
+    color: var(--text-dim);
+    font-weight: 300;
+    max-width: 520px;
+    margin-bottom: 56px;
+}
+
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+.feat {
+    background: var(--bg2);
+    padding: 32px 28px;
+    transition: background 0.2s;
+}
+.feat:hover { background: var(--bg3); }
+.feat-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    background: rgba(200,146,42,0.10);
+    border: 1px solid var(--gold-dim);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+    font-size: 18px;
+}
+.feat-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 8px;
+}
+.feat-desc {
+    font-size: 13.5px;
+    color: var(--text-dim);
+    line-height: 1.65;
+    font-weight: 300;
+}
+.feat-tag {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: rgba(200,146,42,0.10);
+    color: var(--gold-dim);
+    margin-top: 14px;
+    letter-spacing: 0.05em;
+}
+
+/* ── How it works ─────────────────────────────────────────── */
+.steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 24px;
+    counter-reset: step;
+}
+.step {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 32px 24px;
+    position: relative;
+    counter-increment: step;
+    transition: border-color 0.2s;
+}
+.step:hover { border-color: var(--gold-dim); }
+.step::before {
+    content: counter(step, decimal-leading-zero);
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--gold-dim);
+    letter-spacing: 0.1em;
+    display: block;
+    margin-bottom: 20px;
+}
+.step-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 10px;
+}
+.step-desc {
+    font-size: 13px;
+    color: var(--text-dim);
+    line-height: 1.65;
+    font-weight: 300;
+}
+.step-code {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 11px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 6px 10px;
+    margin-top: 14px;
+    color: var(--gold);
+    letter-spacing: 0.05em;
+}
+
+/* ── Entity types ─────────────────────────────────────────── */
+.entity-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+.entity-pill {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    padding: 6px 14px;
+    border-radius: 5px;
+    border: 1px solid var(--border);
+    background: var(--bg2);
+    color: var(--text-dim);
+    transition: border-color 0.2s, color 0.2s;
+}
+.entity-pill:hover { border-color: var(--gold-dim); color: var(--gold); }
+
+/* ── Requirements ─────────────────────────────────────────── */
+.req-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.req-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    font-size: 14px;
+    color: var(--text-dim);
+}
+.req-list li::before {
+    content: '▸';
+    color: var(--gold-dim);
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+.req-list code {
+    font-family: var(--mono);
+    font-size: 12px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 6px;
+    color: var(--gold);
+}
+
+/* ── Download section ─────────────────────────────────────── */
+#download {
+    text-align: center;
+}
+.dl-box {
+    display: inline-block;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 48px 56px;
+    max-width: 540px;
+    width: 100%;
+}
+.dl-box h3 {
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 0.15em;
+    color: var(--gold-dim);
+    margin-bottom: 14px;
+}
+.dl-box p {
+    font-size: 14px;
+    color: var(--text-dim);
+    margin-bottom: 32px;
+    font-weight: 300;
+}
+.dl-steps {
+    text-align: left;
+    list-style: none;
+    margin-bottom: 36px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.dl-steps li {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    font-size: 13px;
+    color: var(--text-dim);
+}
+.dl-num {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--gold-dim);
+    flex-shrink: 0;
+    width: 18px;
+}
+.dl-steps code {
+    font-family: var(--mono);
+    font-size: 12px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 7px;
+    color: var(--gold);
+}
+
+/* ── Footer ───────────────────────────────────────────────── */
+footer {
+    border-top: 1px solid var(--border);
+    padding: 32px 24px;
+    text-align: center;
+}
+.footer-inner {
+    max-width: var(--max);
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+.footer-logo {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--gold-dim);
+    letter-spacing: 0.08em;
+}
+.footer-text {
+    font-size: 12px;
+    color: var(--text-faint);
+}
+.footer-credit {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-faint);
+    letter-spacing: 0.05em;
+}
+
+/* ── Utility ──────────────────────────────────────────────── */
+.divider { border: none; border-top: 1px solid var(--border); margin: 48px 0; }
+
+@media (max-width: 640px) {
+    .nav-links { display: none; }
+    .stats { flex-direction: column; }
+    .stat + .stat { border-left: none; border-top: 1px solid var(--border); }
+    .dl-box { padding: 36px 24px; }
+    .footer-inner { justify-content: center; text-align: center; }
+}
+</style>
+</head>
+<body>
+
+<!-- ── Nav ───────────────────────────────────────────────────── -->
+<nav>
+  <div class="nav-inner">
+    <a class="nav-logo" href="#" style="text-decoration:none">0FFL1N3 R3DA&lt;+0R</a>
+    <ul class="nav-links">
+      <li><a href="#features">Features</a></li>
+      <li><a href="#how-it-works">How it works</a></li>
+      <li><a href="#entities">What gets detected</a></li>
+      <li><a href="#requirements">Requirements</a></li>
+    </ul>
+    <a class="nav-dl" href="#download">&#8659; Download</a>
+  </div>
+</nav>
+
+<!-- ── Hero ──────────────────────────────────────────────────── -->
+<section id="hero">
+  <div class="hero-badge">100% OFFLINE &nbsp;·&nbsp; NO CLOUD &nbsp;·&nbsp; NO TELEMETRY</div>
+  <h1 class="hero-title">0FFL1N3&nbsp;R3DA&lt;+0R</h1>
+  <p class="hero-sub">SECURE &nbsp;·&nbsp; LOCAL &nbsp;·&nbsp; PRIVATE</p>
+  <p class="hero-byline">By Tan Sze Yao</p>
+  <p class="hero-desc">
+    AI-powered document redaction that runs entirely on your machine.
+    Drag-and-drop a contract, review what gets redacted, then export and download the clean file —
+    the document never leaves your device.
+    The redacted document can then be safely uploaded to other AI contract analysis tools for substantive review.
+  </p>
+  <div class="hero-actions">
+    <a class="btn-primary" href="#download">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M8 1v9M4 7l4 4 4-4M2 13h12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Download for Windows
+    </a>
+    <a class="btn-ghost" href="#how-it-works">
+      See how it works
+    </a>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <span class="stat-val">14+</span>
+      <span class="stat-lbl">Entity types detected</span>
+    </div>
+    <div class="stat">
+      <span class="stat-val">PDF / DOCX / TXT</span>
+      <span class="stat-lbl">Supported formats</span>
+    </div>
+    <div class="stat">
+      <span class="stat-val">0 bytes</span>
+      <span class="stat-lbl">Data sent to cloud</span>
+    </div>
+  </div>
+</section>
+
+<!-- ── Features ──────────────────────────────────────────────── -->
+<section class="section" id="features">
+  <div class="container">
+    <p class="section-label">Features</p>
+    <h2 class="section-title">Everything you need to redact with confidence</h2>
+    <p class="section-desc">Built on Microsoft Presidio and spaCy — the same NLP stack trusted by enterprise security teams.</p>
+
+    <div class="features-grid">
+
+      <div class="feat">
+        <div class="feat-icon">🔒</div>
+        <div class="feat-title">Fully offline</div>
+        <p class="feat-desc">Once installed, the app requires no internet connection. Models run locally via spaCy. No document data is ever transmitted anywhere.</p>
+        <span class="feat-tag">PRIVACY-FIRST</span>
+      </div>
+
+      <div class="feat">
+        <div class="feat-icon">🧠</div>
+        <div class="feat-title">AI-powered PII detection</div>
+        <p class="feat-desc">Microsoft Presidio with spaCy's <code style="font-family:monospace;font-size:12px;color:var(--gold)">en_core_web_lg</code> model detects names, organisations, dates, phone numbers, IDs, and more — with confidence scores.</p>
+        <span class="feat-tag">NLP · NER</span>
+      </div>
+
+      <div class="feat">
+        <div class="feat-icon">✅</div>
+        <div class="feat-title">Review before you redact</div>
+        <p class="feat-desc">Every detected entity is listed for your review. Approve, reject, or remove individual items before a single redaction is applied.</p>
+        <span class="feat-tag">HUMAN-IN-THE-LOOP</span>
+      </div>
+
+      <div class="feat">
+        <div class="feat-icon">✏️</div>
+        <div class="feat-title">Manual phrase redaction</div>
+        <p class="feat-desc">Type any phrase to add it to the redaction list — useful for domain-specific identifiers the AI may not recognise, like internal project codes.</p>
+        <span class="feat-tag">CUSTOM PHRASES</span>
+      </div>
+
+      <div class="feat">
+        <div class="feat-icon">🖊️</div>
+        <div class="feat-title">Draw-to-redact on PDFs</div>
+        <p class="feat-desc">Switch into drawing mode and drag black boxes directly over any area of a PDF page — perfect for redacting signatures, stamps, or images that text search cannot find.</p>
+        <span class="feat-tag">DRAW MODE</span>
+      </div>
+
+      <div class="feat">
+        <div class="feat-icon">📄</div>
+        <div class="feat-title">Multi-format support</div>
+        <p class="feat-desc">Works with <strong>PDF</strong> (text-based), <strong>DOCX</strong>, and <strong>TXT</strong> files. PDF redactions are applied as permanent black boxes using PyMuPDF — no recoverable text underneath.</p>
+        <span class="feat-tag">PDF · DOCX · TXT</span>
+      </div>
+
+      <div class="feat">
+        <div class="feat-icon">🎨</div>
+        <div class="feat-title">Colour-coded entity preview</div>
+        <p class="feat-desc">In the document preview, each category of PII is highlighted in a distinct colour so you can spot patterns at a glance before committing to redaction.</p>
+        <span class="feat-tag">VISUAL REVIEW</span>
+      </div>
+
+      <div class="feat">
+        <div class="feat-icon">⬇️</div>
+        <div class="feat-title">Instant download</div>
+        <p class="feat-desc">Once you're happy, click Apply and download your redacted document in its original format. The redacted file is produced in memory and never written to a server.</p>
+        <span class="feat-tag">LOCAL OUTPUT</span>
+      </div>
+
+      <div class="feat">
+        <div class="feat-icon">⚙️</div>
+        <div class="feat-title">Enterprise-grade NLP stack</div>
+        <p class="feat-desc">Built on <strong style="color:var(--text)">Microsoft Presidio</strong> and <strong style="color:var(--text)">spaCy en_core_web_lg</strong> for reliable, production-quality entity detection. Optionally layer on <strong style="color:var(--text)">BERT-based NER</strong> (dslim/bert-base-NER) as a toggle for deeper coverage of unusual names and organisations — without replacing the core engine.</p>
+        <span class="feat-tag">PRESIDIO · SPACY · BERT</span>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ── How it works ───────────────────────────────────────────── -->
+<section class="section" id="how-it-works">
+  <div class="container">
+    <p class="section-label">How it works</p>
+    <h2 class="section-title">From raw document to redacted file in four steps</h2>
+    <p class="section-desc">The entire workflow runs in your browser tab, served locally. Nothing touches the internet.</p>
+
+    <div class="steps">
+
+      <div class="step">
+        <div class="step-title">Install once</div>
+        <p class="step-desc">Download and unzip. Run the setup script to create a local Python environment and download the AI model.</p>
+        <span class="step-code">setup.bat</span>
+      </div>
+
+      <div class="step">
+        <div class="step-title">Launch the app</div>
+        <p class="step-desc">Double-click to start. Your browser opens automatically at <code style="font-family:monospace;font-size:12px;color:var(--gold)">localhost:8501</code> — no internet required.</p>
+        <span class="step-code">run.bat</span>
+      </div>
+
+      <div class="step">
+        <div class="step-title">Upload & review</div>
+        <p class="step-desc">Upload your PDF, DOCX, or TXT file. The AI scans it and presents every detected entity for your approval. Accept, reject, or add your own phrases.</p>
+      </div>
+
+      <div class="step">
+        <div class="step-title">Apply & download</div>
+        <p class="step-desc">Click Apply Redactions. Draw any additional black boxes over images or signatures. Download your clean, redacted document.</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ── Entity types ───────────────────────────────────────────── -->
+<section class="section" id="entities">
+  <div class="container">
+    <p class="section-label">Detection coverage</p>
+    <h2 class="section-title">What gets detected</h2>
+    <p class="section-desc" style="margin-bottom:36px">Out of the box, the engine detects the following PII entity types. Custom phrases can supplement detection for anything not listed.</p>
+    <div class="entity-grid">
+      <span class="entity-pill">PERSON</span>
+      <span class="entity-pill">ORGANIZATION</span>
+      <span class="entity-pill">LOCATION</span>
+      <span class="entity-pill">DATE_TIME</span>
+      <span class="entity-pill">PHONE_NUMBER</span>
+      <span class="entity-pill">EMAIL_ADDRESS</span>
+      <span class="entity-pill">CREDIT_CARD</span>
+      <span class="entity-pill">US_SSN</span>
+      <span class="entity-pill">IP_ADDRESS</span>
+      <span class="entity-pill">CONTRACT_ID</span>
+      <span class="entity-pill">EIN</span>
+      <span class="entity-pill">BANK_ROUTING</span>
+      <span class="entity-pill">NRIC_SG</span>
+      <span class="entity-pill">ADDRESS</span>
+      <span class="entity-pill">+ custom phrases</span>
+    </div>
+  </div>
+</section>
+
+<!-- ── Requirements ───────────────────────────────────────────── -->
+<section class="section" id="requirements">
+  <div class="container">
+    <p class="section-label">System requirements</p>
+    <h2 class="section-title">What you need</h2>
+    <p class="section-desc" style="margin-bottom:36px">Lightweight. No GPU required. The setup script handles everything after step one.</p>
+    <ul class="req-list">
+      <li>Windows 10 or 11 (64-bit)</li>
+      <li>Python 3.10, 3.11, or 3.12 — install from <strong>python.org</strong>, tick <em>"Add Python to PATH"</em> during setup</li>
+      <li>~1.5 GB free disk space (Python environment + spaCy model)</li>
+      <li>Internet access during first-time setup only — to download dependencies</li>
+      <li>Any modern browser (Chrome, Edge, Firefox) — opens automatically on launch</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ── Download ───────────────────────────────────────────────── -->
+<section class="section" id="download">
+  <div class="container">
+    <p class="section-label" style="text-align:center">Download</p>
+    <h2 class="section-title" style="text-align:center">Get Offline Redactor</h2>
+    <p style="text-align:center;font-size:16px;color:var(--text-dim);font-weight:300;margin-bottom:48px">
+      Free. No account. No licence key.
+    </p>
+
+    <div style="display:flex;justify-content:center">
+      <div class="dl-box">
+        <h3>WINDOWS &nbsp;·&nbsp; v1.0</h3>
+        <p>Unzip, run <code style="font-family:monospace;font-size:12px;color:var(--gold)">setup.bat</code> once, then <code style="font-family:monospace;font-size:12px;color:var(--gold)">run.bat</code> every time.</p>
+        <ol class="dl-steps">
+          <li><span class="dl-num">01</span> Download and unzip the file below</li>
+          <li><span class="dl-num">02</span> Run <code>setup.bat</code> — installs everything (~5 min, internet needed once)</li>
+          <li><span class="dl-num">03</span> Run <code>run.bat</code> — opens the app in your browser</li>
+          <li><span class="dl-num">04</span> Upload a document and start redacting</li>
+        </ol>
+        <!-- ↓ Replace YOUR_USERNAME and REPO_NAME once your release is created -->
+        <a class="btn-primary" style="width:100%;justify-content:center"
+           href="https://github.com/YOUR_USERNAME/REPO_NAME/releases/download/v1.0/OfflineRedactor.zip" download>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M8 1v9M4 7l4 4 4-4M2 13h12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Download OfflineRedactor.zip
+        </a>
+        <p style="margin-top:16px;margin-bottom:0;font-size:11px;color:var(--text-faint);text-align:center">
+          Python 3.10+ must be installed separately · Windows only
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Footer ─────────────────────────────────────────────────── -->
+<footer>
+  <div class="footer-inner">
+    <span class="footer-logo">0FFL1N3 R3DA&lt;+0R</span>
+    <span class="footer-text">Powered by Microsoft Presidio · spaCy · PyMuPDF · Streamlit</span>
+    <span class="footer-credit">Built by Tan Sze Yao</span>
+  </div>
+</footer>
+
+</body>
+</html>
